@@ -1,7 +1,8 @@
+import subprocess
+import sys
 import streamlit as st
 import pickle
 import requests
-from langchain.llms.huggingface_hub import HuggingFaceHub
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from langchain.vectorstores.faiss import FAISS
 from langchain.document_loaders import UnstructuredURLLoader
@@ -9,6 +10,18 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import PromptTemplate
 from langchain.chains.retrieval_qa.base import RetrievalQA
 import os
+
+# Function to install a package if it's not already installed
+def install(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+# Attempt to import HuggingFaceHub; if it fails, install the required packages
+try:
+    from langchain.llms.huggingface_hub import HuggingFaceHub
+except ImportError:
+    install("langchain")
+    install("huggingface_hub")
+    from langchain.llms.huggingface_hub import HuggingFaceHub
 
 # Streamlit App Title
 st.title("CROW: News Research Tool")
@@ -21,7 +34,6 @@ if not hf_api_key:
     st.stop()
 
 # Path to the .py file in your GitHub repository
-# Example: https://raw.githubusercontent.com/yourusername/yourrepository/main/yourfile.py
 github_py_url = st.text_input(
     "Enter the GitHub raw URL to the .py file",
     placeholder="https://raw.githubusercontent.com/yourusername/yourrepository/main/yourfile.py"
