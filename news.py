@@ -1,4 +1,3 @@
-import os
 import streamlit as st
 import pickle
 import requests
@@ -14,11 +13,11 @@ from langchain.chains.retrieval_qa.base import RetrievalQA  # Updated import
 st.title("CROW: News Research Tool")
 st.sidebar.title("News Article URLs")
 
-# Hugging Face API key from environment variable
-hf_api_key = os.getenv("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")
+# Hugging Face API key from Streamlit Cloud Secrets
+hf_api_key = st.secrets["HF_API_KEY"]
 
 if not hf_api_key:
-    st.error("Please set your Hugging Face API token as an environment variable 'HUGGINGFACEHUB_API_TOKEN'.")
+    st.error("Please set your Hugging Face API token in the Streamlit Cloud Secrets as 'HF_API_KEY'.")
     st.stop()
 
 # Collect URLs
