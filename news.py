@@ -1,17 +1,17 @@
 import streamlit as st
 import pickle
 import requests
-from langchain.llms.huggingface_hub import HuggingFaceHub  # Updated import
+from langchain.llms.huggingface_hub import HuggingFaceHub
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from langchain.vectorstores.faiss import FAISS
 from langchain.document_loaders import UnstructuredURLLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import PromptTemplate
-from langchain.chains.retrieval_qa.base import RetrievalQA  # Updated import
+from langchain.chains.retrieval_qa.base import RetrievalQA
+import os
 
 # Streamlit App Title
 st.title("CROW: News Research Tool")
-st.sidebar.title("News Article URLs")
 
 # Hugging Face API key from Streamlit Cloud Secrets
 hf_api_key = st.secrets["HF_API_KEY"]
@@ -20,40 +20,35 @@ if not hf_api_key:
     st.error("Please set your Hugging Face API token in the Streamlit Cloud Secrets as 'HF_API_KEY'.")
     st.stop()
 
-# Collect URLs
-urls = []
-for i in range(3):
-    url = st.sidebar.text_input(f"URL {i+1}", key=f"url_{i}")
-    if url:
-        urls.append(url)
+# Path to the .py file in your GitHub repository
+# Example: https://raw.githubusercontent.com/yourusername/yourrepository/main/yourfile.py
+github_py_url = st.text_input(
+    "Enter the GitHub raw URL to the .py file",
+    placeholder="https://raw.githubusercontent.com/yourusername/yourrepository/main/yourfile.py"
+)
 
-# Process URLs if button clicked
-process_url_clicked = st.sidebar.button("Process URLs")
+# Process the file once the button is clicked
+process_file_clicked = st.button("Process File")
+
 file_path = "faiss_store_hf.pkl"
 main_placeholder = st.empty()
 
-# Initialize the Hugging Face Hub LLM
-llm = HuggingFaceHub(
-    repo_id="google/flan-t5-base",
-    model_kwargs={"temperature": 0.7, "max_length": 512},
-    huggingfacehub_api_token=hf_api_key
-)
-
-if process_url_clicked and urls:
+if process_file_clicked and github_py_url:
     try:
-        # Load documents from URLs
-        loader = UnstructuredURLLoader(urls=urls)
-        main_placeholder.text("Data Loading...Started...✅✅✅")
-        data = loader.load()
+        # Fetch the raw .py file from the GitHub URL
+        response = requests.get(github_py_url)
 
-        # Ensure data is extracted
-        if not data:
-            st.error("No data extracted. Check URLs.")
+        if response.status_code != 200:
+            st.error(f"Failed to fetch the file. Status code: {response.status_code}")
             st.stop()
 
-        # Split text into manageable chunks
+        # Extract the content of the file (as text)
+        file_content = response.text
+        main_placeholder.text("File Loading...Started...✅✅✅")
+
+        # Split the text into manageable chunks
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
-        docs = text_splitter.split_documents(data)
+        docs = text_splitter.split_text(file_content)
 
         if not docs:
             st.error("No documents created after splitting.")
@@ -61,20 +56,20 @@ if process_url_clicked and urls:
 
         # Initialize embeddings and vector store
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        vectorstore_hf = FAISS.from_documents(docs, embeddings)
+        vectorstore_hf = FAISS.from_texts(docs, embeddings)
         main_placeholder.text("Building Embedding Vector Store...✅✅✅")
 
         # Save the vector store
         with open(file_path, "wb") as f:
             pickle.dump(vectorstore_hf, f)
 
-        st.success("URLs processed successfully!")
+        st.success("File processed successfully!")
 
     except Exception as e:
         st.error(f"Error during processing: {e}")
 
 # Handle user query
-query = main_placeholder.text_input("Question: ")
+query = main_placeholder.text_input("Ask a question about the file: ")
 if query and os.path.exists(file_path):
     with open(file_path, "rb") as f:
         vectorstore = pickle.load(f)
