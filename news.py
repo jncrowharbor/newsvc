@@ -9,25 +9,12 @@ from langchain.document_loaders import UnstructuredURLLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import PromptTemplate
 from langchain.chains.retrieval_qa.base import RetrievalQA
+from langchain.llms.huggingface_hub import HuggingFaceHub
 import os
 
 # Function to install a package if it's not already installed
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
-# Attempt to import HuggingFaceHub; if it fails, install the required packages
-try:
-    from langchain.llms.huggingface_hub import HuggingFaceHub
-    st.write("HuggingFaceHub imported successfully!")
-except ImportError:
-    st.write("Installing required packages...")
-    install("langchain[huggingface_hub]")
-    try:
-        from langchain.llms.huggingface_hub import HuggingFaceHub
-        st.write("HuggingFaceHub imported successfully after installation!")
-    except ImportError as e:
-        st.error(f"Error importing HuggingFaceHub: {e}")
-        st.stop()
 
 # Streamlit App Title
 st.title("CROW: News Research Tool")
@@ -38,6 +25,9 @@ hf_api_key = st.secrets["HF_API_KEY"]
 if not hf_api_key:
     st.error("Please set your Hugging Face API token in the Streamlit Cloud Secrets as 'HF_API_KEY'.")
     st.stop()
+
+# Initialize the HuggingFaceHub LLM with API Key
+llm = HuggingFaceHub(api_key=hf_api_key, model_name="gpt-neo-125M")
 
 # Path to the .py file in your GitHub repository
 github_py_url = st.text_input(
