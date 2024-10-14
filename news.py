@@ -5,7 +5,6 @@ import pickle
 import requests
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from langchain.vectorstores.faiss import FAISS
-from langchain.document_loaders import UnstructuredURLLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import PromptTemplate
 from langchain.chains.retrieval_qa.base import RetrievalQA
