@@ -18,10 +18,16 @@ def install(package):
 # Attempt to import HuggingFaceHub; if it fails, install the required packages
 try:
     from langchain.llms.huggingface_hub import HuggingFaceHub
+    st.write("HuggingFaceHub imported successfully!")
 except ImportError:
-    install("langchain")
-    install("huggingface_hub")
-    from langchain.llms.huggingface_hub import HuggingFaceHub
+    st.write("Installing required packages...")
+    install("langchain[huggingface_hub]")
+    try:
+        from langchain.llms.huggingface_hub import HuggingFaceHub
+        st.write("HuggingFaceHub imported successfully after installation!")
+    except ImportError as e:
+        st.error(f"Error importing HuggingFaceHub: {e}")
+        st.stop()
 
 # Streamlit App Title
 st.title("CROW: News Research Tool")
