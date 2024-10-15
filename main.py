@@ -106,7 +106,7 @@ if hf_api_key:
             retriever = vectorstore.as_retriever()
 
         # Custom prompt template to generate better answers
-        custom_prompt_template = """You are a knowledgeable assistant. Given the following extracted parts of a long document, provide a clear and concise answer to the user's question. If you don't know the answer, just say you don't know.
+        custom_prompt_template = """You are a knowledgeable assistant. Given the following extracted parts of a long document, provide a clear and structured answer to the user's question. If you don't know the answer, just say you don't know.
 
 Question: {question}
 
