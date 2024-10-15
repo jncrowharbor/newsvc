@@ -1,19 +1,13 @@
-import subprocess
-import sys
-import streamlit as st
+import os
 import pickle
 import requests
-from langchain.embeddings.huggingface import HuggingFaceEmbeddings
-from langchain.vectorstores.faiss import FAISS
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+import streamlit as st
+from langchain.chains import RetrievalQA
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.llms import HuggingFaceHub
 from langchain.prompts import PromptTemplate
-from langchain.chains.retrieval_qa.base import RetrievalQA
-from langchain.llms.huggingface_hub import HuggingFaceHub
-import os
-
-# Function to install a package if it's not already installed
-def install(package):
-    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.vectorstores import FAISS
 
 # Streamlit App Title
 st.title("CROW: News Research Tool")
