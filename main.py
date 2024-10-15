@@ -15,15 +15,19 @@ from pyngrok import ngrok
 # Load environment variables from .env
 load_dotenv()
 
-# Set up ngrok if running locally (comment this part out if running on Streamlit Cloud)
-ngrok_auth_token = os.getenv("NGROK_AUTH_TOKEN")
-if ngrok_auth_token:
-    ngrok.set_auth_token(ngrok_auth_token)
-    http_tunnel = ngrok.connect(8501)  # Creates a tunnel for port 8501 (Streamlit's default port)
-    public_url = http_tunnel.public_url
-    st.write(f"App is running publicly at: {public_url}")
-else:
-    st.error("NGROK_AUTH_TOKEN is missing from environment variables.")
+# Check if we're running locally by looking for a specific environment variable
+is_local = os.getenv("IS_LOCAL", "false").lower() == "true"
+
+# Only run ngrok if we're running locally
+if is_local:
+    ngrok_auth_token = os.getenv("NGROK_AUTH_TOKEN")
+    if ngrok_auth_token:
+        ngrok.set_auth_token(ngrok_auth_token)
+        http_tunnel = ngrok.connect(8501)  # Creates a tunnel for port 8501 (Streamlit's default port)
+        public_url = http_tunnel.public_url
+        st.write(f"App is running publicly at: {public_url}")
+    else:
+        st.error("NGROK_AUTH_TOKEN is missing from environment variables.")
 
 st.title("CROW: News Research Tool")
 st.sidebar.title("News Article URLs")
