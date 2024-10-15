@@ -1,5 +1,5 @@
-git add runtime.txt requirements.txt
-git commit -m "Specify Python 3.9 and update dependencies"
+git add runtime.txt
+git commit -m "Corrected runtime.txt to specify Python 3.9"
 git push origin main
 
 import os
