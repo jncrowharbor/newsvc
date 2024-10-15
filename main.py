@@ -14,7 +14,7 @@ st.title("CROW: News Research Tool")
 st.sidebar.title("News Article URLs")
 
 # Hard-coded Hugging Face API key (Replace 'your_api_key_here' with your actual API key)
-hf_api_key = ""
+hf_api_key = st.secrets["HF_API_KEY"]
 
 urls = []
 for i in range(3):
