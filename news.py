@@ -1,3 +1,7 @@
+git add runtime.txt requirements.txt
+git commit -m "Specify Python 3.9 and update dependencies"
+git push origin main
+
 import os
 import pickle
 import requests
