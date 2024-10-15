@@ -1,109 +1,127 @@
-import os
-import requests
+import os 
 import streamlit as st
-from langchain.chains import RetrievalQA
-from langchain.embeddings import HuggingFaceEmbeddings
+import pickle
+import time
 from langchain.llms import HuggingFaceHub
-from langchain.prompts import PromptTemplate
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.vectorstores import FAISS
+from langchain.document_loaders import UnstructuredURLLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import Chroma
+from langchain.prompts import PromptTemplate
+from langchain.chains import RetrievalQA
 
-# Streamlit App Title
 st.title("CROW: News Research Tool")
+st.sidebar.title("News Article URLs")
 
-# Hugging Face API key from Streamlit Cloud Secrets
-hf_api_key = st.secrets["HF_API_KEY"]
+# Hard-coded Hugging Face API key (Replace 'your_api_key_here' with your actual API key)
+hf_api_key = ""
 
-if not hf_api_key:
-    st.error("Please set your Hugging Face API token in the Streamlit Cloud Secrets as 'HF_API_KEY'.")
-    st.stop()
+urls = []
+for i in range(3):
+    url = st.sidebar.text_input(f"URL {i+1}", key=f"url_{i}")
+    if url:
+        urls.append(url)
 
-# Initialize the HuggingFaceHub LLM with API Key
-llm = HuggingFaceHub(api_key=hf_api_key, model_name="gpt-neo-125M")
-
-# Path to the .py file in your GitHub repository
-github_py_url = st.text_input(
-    "Enter the GitHub raw URL to the .py file",
-    placeholder="https://raw.githubusercontent.com/yourusername/yourrepository/main/yourfile.py"
-)
-
-# Process the file once the button is clicked
-process_file_clicked = st.button("Process File")
-
-# Directory to store the Chroma vector store
-vectorstore_path = "chroma_vectorstore"
+process_url_clicked = st.sidebar.button("Process URLs")
+file_path = "faiss_store_hf.pkl"
 main_placeholder = st.empty()
 
-if process_file_clicked and github_py_url:
-    try:
-        # Fetch the raw .py file from the GitHub URL
-        response = requests.get(github_py_url)
-
-        if response.status_code != 200:
-            st.error(f"Failed to fetch the file. Status code: {response.status_code}")
-            st.stop()
-
-        # Extract the content of the file (as text)
-        file_content = response.text
-        main_placeholder.text("File Loading...Started...✅✅✅")
-
-        # Split the text into manageable chunks
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
-        docs = text_splitter.create_documents([file_content])
-
-        if not docs:
-            st.error("No documents created after splitting.")
-            st.stop()
-
-        # Initialize embeddings and vector store
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-
-        # Remove existing vector store if it exists
-        if os.path.exists(vectorstore_path):
-            import shutil
-            shutil.rmtree(vectorstore_path)
-
-        # Create a new Chroma vector store and persist it
-        vectorstore_hf = Chroma.from_documents(docs, embeddings, persist_directory=vectorstore_path)
-        vectorstore_hf.persist()
-        main_placeholder.text("Building Embedding Vector Store...✅✅✅")
-
-        st.success("File processed successfully!")
-
-    except Exception as e:
-        st.error(f"Error during processing: {e}")
-
-# Handle user query
-query = main_placeholder.text_input("Ask a question about the file: ")
-if query and os.path.exists(vectorstore_path):
-    # Load the persisted Chroma vector store
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vectorstore = Chroma(persist_directory=vectorstore_path, embedding_function=embeddings)
-    retriever = vectorstore.as_retriever()
-
-    custom_prompt_template = """You are a knowledgeable assistant. Answer based on the extracted parts of a long document.
-Question: {question}
-Document: {context}
-Answer:"""
-    prompt = PromptTemplate(template=custom_prompt_template, input_variables=["context", "question"])
-
-    # RetrievalQA chain
-    chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        chain_type="stuff",
-        retriever=retriever,
-        return_source_documents=True,
-        chain_type_kwargs={"prompt": prompt}
+if hf_api_key:
+    # Initialize the LLM using a suitable model from Hugging Face
+    llm = HuggingFaceHub(
+        repo_id="google/flan-t5-base",
+        model_kwargs={"temperature": 0.7, "max_length": 512},
+        huggingfacehub_api_token=hf_api_key  # Pass the API key directly
     )
 
-    result = chain({"query": query})
+    if process_url_clicked and urls:
+        try:
+            # Initialize the loader with the URLs
+            loader = UnstructuredURLLoader(urls=urls)
+            main_placeholder.text("Data Loading...Started...✅✅✅")
+            data = loader.load()
 
-    # Display answer
-    st.header("Answer")
-    st.write(result["result"])
+            # Check if data was successfully extracted
+            if not data:
+                st.error("No data was extracted from the URLs. Please check the URLs or try different ones.")
+                st.stop()
 
-    # Display sources
-    st.subheader("Sources:")
-    sources = {doc.metadata.get('source', 'Unknown') for doc in result["source_documents"]}
-    for source in sources:
-        st.write(f"- {source}")
+            # Manually set the 'source' metadata for each document
+            for doc, url in zip(data, urls):
+                doc.metadata['source'] = url
+
+            # Reduce chunk size to handle large documents
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=500,  # Reduced chunk size to avoid context length issues
+                chunk_overlap=100  # Some overlap to maintain context
+            )
+            main_placeholder.text("Text Splitting...Started...✅✅✅")
+            docs = text_splitter.split_documents(data)
+
+            if not docs:
+                st.error("No documents were created after splitting. Please check the content of the URLs.")
+                st.stop()
+
+            # Initialize embeddings
+            embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+            # Create the vector store
+            vectorstore_hf = FAISS.from_documents(docs, embeddings)
+            main_placeholder.text("Building Embedding Vector Store...✅✅✅")
+            time.sleep(2)
+
+            # Save the vector store to a file for future queries
+            with open(file_path, "wb") as f:
+                pickle.dump(vectorstore_hf, f)
+
+            st.success("URLs processed successfully!")
+
+        except Exception as e:
+            st.error(f"An error occurred during processing: {e}")
+
+    # Query input for the user to ask questions based on the processed content
+    query = main_placeholder.text_input("Question: ")
+    if query and os.path.exists(file_path):
+        with open(file_path, "rb") as f:
+            vectorstore = pickle.load(f)
+            retriever = vectorstore.as_retriever()
+
+        # Custom prompt template to generate better answers
+        custom_prompt_template = """You are a knowledgeable assistant. Given the following extracted parts of a long document, provide a clear and concise answer to the user's question. If you don't know the answer, just say you don't know.
+
+Question: {question}
+
+Document: {context}
+
+Answer:"""
+
+        # Create the prompt
+        prompt = PromptTemplate(template=custom_prompt_template, input_variables=["context", "question"])
+
+        # Initialize the RetrievalQA chain
+        chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            chain_type="stuff",
+            retriever=retriever,
+            return_source_documents=True,
+            chain_type_kwargs={"prompt": prompt}
+        )
+
+        # Get the result of the query
+        result = chain({"query": query})
+
+        # Display the answer
+        st.header("Answer")
+        st.write(result["result"])
+
+        # Display the sources of the information
+        st.subheader("Sources:")
+        sources = set()
+        for doc in result["source_documents"]:
+            source = doc.metadata.get('source', 'Unknown')
+            sources.add(source)
+        for source in sources:
+            st.write(f"- {source}")
+
+else:
+    st.error("API Key is missing or invalid.")
