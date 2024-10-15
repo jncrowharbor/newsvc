@@ -1,7 +1,9 @@
-streamlit
-requests
-langchain
-huggingface_hub
-transformers
-sentence-transformers
-faiss-cpu
+streamlit==1.24.1
+requests==2.31.0
+langchain==0.0.318
+huggingface_hub==0.17.3
+transformers==4.34.0
+sentence-transformers==2.2.2
+faiss-cpu==1.7.4
+numpy==1.23.5
+torch==2.0.1
