@@ -102,3 +102,4 @@ Answer:"""
     sources = {doc.metadata.get('source', 'Unknown') for doc in result["source_documents"]}
     for source in sources:
         st.write(f"- {source}")
+
