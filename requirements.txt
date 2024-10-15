@@ -4,6 +4,6 @@ langchain==0.0.318
 huggingface_hub==0.17.3
 transformers==4.34.0
 sentence-transformers==2.2.2
-faiss-cpu==1.7.2.post2
 numpy==1.23.5
+chromadb
 setuptools
