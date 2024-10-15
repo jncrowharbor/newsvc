@@ -1,9 +1,4 @@
-git add news.py runtime.txt packages.txt requirements.txt
-git commit -m "Corrected runtime.txt to specify Python 3.9"
-git push origin main
-
 import os
-import pickle
 import requests
 import streamlit as st
 from langchain.chains import RetrievalQA
@@ -11,7 +6,7 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.llms import HuggingFaceHub
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
+from langchain.vectorstores import Chroma
 
 # Streamlit App Title
 st.title("CROW: News Research Tool")
@@ -35,7 +30,8 @@ github_py_url = st.text_input(
 # Process the file once the button is clicked
 process_file_clicked = st.button("Process File")
 
-file_path = "faiss_store_hf.pkl"
+# Directory to store the Chroma vector store
+vectorstore_path = "chroma_vectorstore"
 main_placeholder = st.empty()
 
 if process_file_clicked and github_py_url:
@@ -53,7 +49,7 @@ if process_file_clicked and github_py_url:
 
         # Split the text into manageable chunks
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
-        docs = text_splitter.split_text(file_content)
+        docs = text_splitter.create_documents([file_content])
 
         if not docs:
             st.error("No documents created after splitting.")
@@ -61,12 +57,16 @@ if process_file_clicked and github_py_url:
 
         # Initialize embeddings and vector store
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        vectorstore_hf = FAISS.from_texts(docs, embeddings)
-        main_placeholder.text("Building Embedding Vector Store...✅✅✅")
 
-        # Save the vector store
-        with open(file_path, "wb") as f:
-            pickle.dump(vectorstore_hf, f)
+        # Remove existing vector store if it exists
+        if os.path.exists(vectorstore_path):
+            import shutil
+            shutil.rmtree(vectorstore_path)
+
+        # Create a new Chroma vector store and persist it
+        vectorstore_hf = Chroma.from_documents(docs, embeddings, persist_directory=vectorstore_path)
+        vectorstore_hf.persist()
+        main_placeholder.text("Building Embedding Vector Store...✅✅✅")
 
         st.success("File processed successfully!")
 
@@ -75,9 +75,10 @@ if process_file_clicked and github_py_url:
 
 # Handle user query
 query = main_placeholder.text_input("Ask a question about the file: ")
-if query and os.path.exists(file_path):
-    with open(file_path, "rb") as f:
-        vectorstore = pickle.load(f)
+if query and os.path.exists(vectorstore_path):
+    # Load the persisted Chroma vector store
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    vectorstore = Chroma(persist_directory=vectorstore_path, embedding_function=embeddings)
     retriever = vectorstore.as_retriever()
 
     custom_prompt_template = """You are a knowledgeable assistant. Answer based on the extracted parts of a long document.
@@ -106,4 +107,3 @@ Answer:"""
     sources = {doc.metadata.get('source', 'Unknown') for doc in result["source_documents"]}
     for source in sources:
         st.write(f"- {source}")
-
