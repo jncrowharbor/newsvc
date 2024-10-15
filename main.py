@@ -1,4 +1,4 @@
-import os 
+import os
 import streamlit as st
 import pickle
 import time
@@ -9,6 +9,21 @@ from langchain.document_loaders import UnstructuredURLLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import PromptTemplate
 from langchain.chains import RetrievalQA
+from dotenv import load_dotenv
+from pyngrok import ngrok
+
+# Load environment variables from .env
+load_dotenv()
+
+# Set up ngrok if running locally (comment this part out if running on Streamlit Cloud)
+ngrok_auth_token = os.getenv("NGROK_AUTH_TOKEN")
+if ngrok_auth_token:
+    ngrok.set_auth_token(ngrok_auth_token)
+    http_tunnel = ngrok.connect(8501)  # Creates a tunnel for port 8501 (Streamlit's default port)
+    public_url = http_tunnel.public_url
+    st.write(f"App is running publicly at: {public_url}")
+else:
+    st.error("NGROK_AUTH_TOKEN is missing from environment variables.")
 
 st.title("CROW: News Research Tool")
 st.sidebar.title("News Article URLs")
